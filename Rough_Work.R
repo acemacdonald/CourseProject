@@ -43,7 +43,7 @@ validData <- validData %>% select(-c("X","user_name","raw_timestamp_part_1",
 # Split into training and test datasets
 
 set.seed(1234) 
-inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)  # Change this to .75
+inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)  # Change this to .6
 trainData <- trainData[inTrain, ]
 testData <- trainData[-inTrain, ]
 
