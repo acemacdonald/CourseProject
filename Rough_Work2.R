@@ -108,9 +108,11 @@ Pred_modelFit_2 <- predict(modelFit_2, testing, type = "class")
 confusionMatrix(Pred_modelFit_2, testing$classe)
 # Now speak about in and out of sample errors
 
+#=======================================================
+# Model 2: Boosting
+#=======================================================
 
-
-
+modelFit_3 <- train(classe ~., method = "gbm", data = training, verbose = FALSE, )
 
 
 
