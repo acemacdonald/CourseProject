@@ -112,9 +112,10 @@ confusionMatrix(Pred_modelFit_2, testing$classe)
 # Model 2: Boosting
 #=======================================================
 
-modelFit_3 <- train(classe ~., method = "gbm", data = training, verbose = FALSE, )
+modelFit_3 <- train(classe ~., method = "gbm", data = training, verbose = FALSE)
+print(modelFit_3)
 
-
+qplot(predict(modelFit_3, testing), classe, data = testing)
 
 
 
