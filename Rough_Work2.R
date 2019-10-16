@@ -14,7 +14,6 @@ library(rattle)
 library(RColorBrewer)
 library(gbm)
 
-
 training_set <- read.csv("Data/pml-training.csv")
 validation_set <- read.csv("Data/pml-testing.csv") # We leave this to the end
 
@@ -62,6 +61,10 @@ testing <- trainData[-inTrain, ]
 # Ok let's start with a fit of the model following the example laid
 # out in Week 2, lecture 1.
 
+#=======================================================
+# Model 1: Classification Trees
+#=======================================================
+
 modelFit_1 <- rpart(classe ~ ., data = training, method = "class")
 
 modelFit_1 # Look at model
@@ -86,10 +89,24 @@ prediction_modelFit_1
 # Confusion Matrix
 
 confusionMatrix(prediction_modelFit_1, testing$classe)
+# Now speak about in and out of sample errors
 
+#=======================================================
+# Model 2: Random Forest:
+#=======================================================
 
+modelFit_2<- randomForest(classe ~. , data=training)
 
+plot(modelFit_2, main = "Random Forest Errors")
 
+# Using prediction to test
+
+Pred_modelFit_2 <- predict(modelFit_2, testing, type = "class")
+
+# Confusion matrix
+
+confusionMatrix(Pred_modelFit_2, testing$classe)
+# Now speak about in and out of sample errors
 
 
 

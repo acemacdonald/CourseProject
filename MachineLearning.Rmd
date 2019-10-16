@@ -13,6 +13,12 @@ library(dplyr)
 library(tidyverse)
 library(caret)
 library(randomForest)
+library(kernlab)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(RColorBrewer)
+library(gbm)
 ```
 
 
