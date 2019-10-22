@@ -19,6 +19,7 @@ library(rpart.plot)
 library(rattle)
 library(RColorBrewer)
 library(gbm)
+library(ranger)
 ```
 
 
@@ -26,7 +27,7 @@ This project serves as the final project for the Coursera Practical Machine Lear
 
 ## Background
 
-This project seeks to predict the manner in which they users of the fitness device did the exercise. Devices such as _Jawbone Up_, _Nike FuelBand_, and _FitBit_ are able to collect vast amounts of data about the way in which people perform exercise. Using this data, enthusiasts are trying to predict (originally) how much exercise they did, while now we can predict how well we did the exercise. 
+This project seeks to predict the manner in which the users of the fitness device did the exercise. Devices such as _Jawbone Up_, _Nike FuelBand_, and _FitBit_ are able to collect vast amounts of data about the way in which people perform exercise. Using this data, enthusiasts are trying to predict (originally) how much exercise they did, while now we can predict how well we did the exercise. 
 
 # Intro
 
@@ -40,23 +41,136 @@ This includes two datasets, a training set and a testing set.
 
 ## Data Processing
 
+The data is loaded and processed to remove any fields that contain no/missing data as well as any other data that is not useful in predicting our model. 
+
 ```{r loaddata, echo=TRUE, results=FALSE}
 training_set <- read.csv("Data/pml-training.csv")
 validation_set <- read.csv("Data/pml-testing.csv")
 ```
 
+The following data contains fields that are irrelevant to the model so they are removed.
+
+```{r removeunwanted, echo=TRUE, results=FALSE}
+KeepThrow <- colSums(is.na(training_set) |training_set=="")
+Observ <- which(KeepThrow == 0)
+training_set <- training_set[, Observ]
+validation_set <- validation_set[, Observ]
+training_set <- training_set[, -c(1:7)]
+validation_set <- validation_set[, -c(1:7)]
+```
+
+The dataset is almost ready. The datasets now need to be split into training and testing datasets before checking for any fields with zero variance. 
+
 Because we want to save our validation set for the very last test we do, we shall split the training set into two separate datasets.
 
 ```{r trainingsets, echo=TRUE, results=FALSE}
-set.seed(1234) 
-inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)
-trainData <- trainData[inTrain, ]
-testData <- trainData[-inTrain, ]
+set.seed(1903) 
+inTrain <- createDataPartition(training_set$classe, 
+                               p = 0.7, list = FALSE)
+training <- training_set[inTrain, ]
+testing <- training_set[-inTrain, ]
 ```
 
-```{r trainingdata, echo=TRUE,results=TRUE}
-summary(pml_training)
+The data are now ready to begin using different models. 
+
+## Modelling 
+
+This section provides the methodology, preforms the different modelling techniques that are used and lastly discusses the results and the final model that best predicts the data. Three different techniques are used that were shown throughout the course, namely: _Classification Trees_, _Random Forests_ and _Boosting_. 
+
+_Classification Trees_ or simply _predicting with trees_ is a process where the data are split iteratively into groups where the homogeneity is evaluated within each group. Each observation is then placed into its most commonly occuring class of training observations.
+
+_Ranond Forests_ are widely accepted as one of the two top performing algorithms in prediction contests along with boosting (our third model!). _Random Forests_ provides an improvement over _Bagged Trees_ by decorrelating  the trees. We build a number of decision trees on bootstrapped training samples and each time a split occurs we choose _a random sample of m predictors_ as split candidates from the full set of predictors.
+
+Normally _m_ is approximately the square root of _p_ predictors which we can also verify.
+
+## Model 1: Classification Trees
+
+The first model is fit on the training data using the [rpart](https://www.r-bloggers.com/trees-with-the-rpart-package/) command. Before we train the model we specify the number of cross validations to perform. Empirically the magic numebr is 10. THe reason why is beyond the scope of this project but we will attempt to keep this theory in mind.
+
+```{r model1, echo=TRUE, results=FALSE}
+rcontrol <- rpart.control(xval = 10)
+modelFit_1 <- rpart(classe ~ ., data = training, method = "class", control = rcontrol)
+modelFit_1
 ```
+
+The data can be seen, along with the associated splits:
+
+```{r treegraph, echo=TRUE,results=TRUE}
+fancyRpartPlot(modelFit_1)
+```
+
+The model must now be validated against the testing set. This is stored in the variable _pred_model1_. Thereafter, the data are inserted into a decision matrix. 
+
+```{r model1validation, echo=TRUE, results=TRUE}
+pred_model1 <- predict(modelFit_1, testing, type = "class")
+confmatrix_model1 <- confusionMatrix(pred_model1, testing$classe)
+confmatrix_model1
+```
+
+## Model 2: Random Forests
+
+To predict using _Random Forests_ the model is fit using the train function from the caret package. 
+
+Normally when performing prediction, it is best to set the k folds for cross validation equal to 10. The reason why cross validation with 10 folds is used is that there is evidence that suggests that there is little added benefit form using more than 10 folds. However, with _Random Forests_ there is no need to perform cross validation to get unbiased estimates of the test set. 
+
+That being said we can run the model.
+
+```{r rf_model, echo=TRUE, results=FALSE}
+modelFit_2 <- randomForest(classe~., data = training)
+```
+
+We can then have a look at the results as well as the confusion matrix for the trained model.
+
+```{r rf_look, echo=TRUE, results=FALSE}
+print(modelFit_2)
+confusionMatrix(modelFit_2$y, training$classe)
+```
+
+The model is trained on the training data so there is no surprise that the accuracy is 1. Further this gives an in-sample error of 0%. 
+
+We can also have a look at the effect that the number of trees have on the error rate.
+
+```{r rf_error, echo=TRUE, results=TRUE}
+plot(modelFit_2, main = "RF Model")
+```
+
+This model selects a final value of _mtry_ = 2, and has an accuracy of 0.9917. We now run the prediciton on the test data set and look at the results.
+
+```{r rf_pred, echo=TRUE, results=TRUE}
+predict2 <- predict(modelFit_2, testing)
+confusionMatrix(predict2, testing$classe)
+```
+
+# Results
+
+This section takes the results of all three models and compares them so that a final model can be selected. 
+
+## Accuracy
+
+The first model that was trained was the _Classification Trees_ model. This model had an accuracy of aproximately 73%. This gave us an out-of-sample error of (1-7397) = 0.2603. This will be compared to the next prediction model in the following paragraph.
+
+The second model, _Random Forests_, performed much better than the first model in terms of accuracy with a value of 99.41%. This is a vast improvement on the _Classification Trees_ model. 
+
+## Errors
+
+The _Classification Trees_ model performed moderately in terms of Sensitivity, Specificity, and Positive and Negative predictive values. However, not all classes of our predictor were consistently predicted. This is in contrast to the _Random Forests_ model where all 5 classes were predicted with a high degree of accuracy among all error types. 
+
+## In and Out of Sample Errors
+
+The in-sample errors for the _Classification Trees_ are #check in sample error
+
+## Model Selection
+
+Unsurprisingly, the _Random Forests_ model performs much better than that of the _Classification Trees_ model. Thus we will use the _Random Forests_ model to validate our model on the validation dataset. As we expected, the out-of-sample error is lower than that of the training data.
+
+```{r finalmodel, echo=TRUE, results=TRUE}
+predict_fin <- predict(modelFit_2, validation_set, type = "class")
+print(predict_fin)
+```
+
+This is what we will use to answer the project quiz.
+
+
 
 
 
