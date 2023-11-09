@@ -1,4 +1,4 @@
-# ML_CourseProject
+# Exercise Prediction un R
  
 ### Project for the Coursera Machine Learning course. 
 
